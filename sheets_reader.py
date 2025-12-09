@@ -201,6 +201,11 @@ def read_all_data():
             })
 
     df = pd.DataFrame(all_data)
+
+    # Ensure 'views' column exists even if no views data found
+    if 'views' not in df.columns:
+        df['views'] = 0
+
     return df
 
 
