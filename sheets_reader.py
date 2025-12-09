@@ -69,6 +69,7 @@ def find_columns(header_row):
         'reactions': None,
         'comments': None,
         'shares': None,
+        'views': None,
     }
 
     for idx, col in enumerate(header_row):
@@ -99,6 +100,10 @@ def find_columns(header_row):
         # Shares column
         if 'share' in col_lower:
             columns['shares'] = idx
+
+        # Views column (TikTok only)
+        if 'view' in col_lower or 'play' in col_lower:
+            columns['views'] = idx
 
     return columns
 
@@ -178,6 +183,7 @@ def read_all_data():
             reactions = parse_number(row[columns['reactions']]) if columns['reactions'] is not None and len(row) > columns['reactions'] else 0
             comments = parse_number(row[columns['comments']]) if columns['comments'] is not None and len(row) > columns['comments'] else 0
             shares = parse_number(row[columns['shares']]) if columns['shares'] is not None and len(row) > columns['shares'] else 0
+            views = parse_number(row[columns['views']]) if columns['views'] is not None and len(row) > columns['views'] else 0
 
             platform = detect_platform(video_link)
             engagement = reactions + comments + shares
@@ -190,6 +196,7 @@ def read_all_data():
                 'reactions': reactions,
                 'comments': comments,
                 'shares': shares,
+                'views': views,
                 'engagement': engagement,
             })
 
@@ -205,6 +212,7 @@ def get_summary_stats(df):
             'total_reactions': 0,
             'total_comments': 0,
             'total_shares': 0,
+            'total_views': 0,
             'total_engagement': 0,
             'platforms': {},
             'creators': [],
@@ -215,6 +223,7 @@ def get_summary_stats(df):
         'total_reactions': df['reactions'].sum(),
         'total_comments': df['comments'].sum(),
         'total_shares': df['shares'].sum(),
+        'total_views': df['views'].sum() if 'views' in df.columns else 0,
         'total_engagement': df['engagement'].sum(),
         'platforms': df['platform'].value_counts().to_dict(),
         'creators': df['content_creator'].unique().tolist(),

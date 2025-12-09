@@ -79,7 +79,7 @@ def main():
     # Summary metrics
     stats = get_summary_stats(filtered_df)
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         st.metric("Total Posts", format_number(stats['total_posts']))
     with col2:
@@ -89,6 +89,8 @@ def main():
     with col4:
         st.metric("Total Shares", format_number(stats['total_shares']))
     with col5:
+        st.metric("Total Views", format_number(stats.get('total_views', 0)))
+    with col6:
         st.metric("Total Engagement", format_number(stats['total_engagement']))
 
     st.divider()
@@ -165,7 +167,7 @@ def main():
     with col2:
         st.subheader("📹 Top Posts by Engagement")
         if not filtered_df.empty:
-            top_posts = filtered_df.nlargest(10, 'engagement')[['content_creator', 'platform', 'reactions', 'comments', 'shares', 'engagement', 'video_link']]
+            top_posts = filtered_df.nlargest(10, 'engagement')[['content_creator', 'platform', 'reactions', 'comments', 'shares', 'views', 'engagement', 'video_link']]
 
             # Make video links clickable
             def make_clickable(url):
@@ -174,10 +176,73 @@ def main():
                 short_url = url[:40] + "..." if len(url) > 40 else url
                 return f'<a href="{url}" target="_blank">{short_url}</a>'
 
+            # Show "-" for views on non-TikTok platforms
+            def format_views(row):
+                if row['platform'] != 'TikTok':
+                    return '-'
+                return row['views'] if row['views'] > 0 else '-'
+
             display_df = top_posts.copy()
+            display_df['views'] = display_df.apply(format_views, axis=1)
             display_df['video_link'] = display_df['video_link'].apply(make_clickable)
 
             st.write(display_df.to_html(escape=False, index=False), unsafe_allow_html=True)
+
+    # TikTok Views section
+    st.divider()
+    st.subheader("👁️ TikTok Views")
+
+    # Filter TikTok only with views > 0
+    tiktok_df = filtered_df[(filtered_df['platform'] == 'TikTok') & (filtered_df['views'] > 0)]
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**🏆 Top Creators by Views (TikTok)**")
+        if not tiktok_df.empty:
+            creator_views = tiktok_df.groupby('content_creator').agg({
+                'views': 'sum',
+                'video_link': 'count'
+            }).rename(columns={'video_link': 'videos'}).sort_values('views', ascending=False).head(10)
+
+            fig = px.bar(
+                creator_views.reset_index(),
+                x='views',
+                y='content_creator',
+                orientation='h',
+                color='views',
+                color_continuous_scale='Blues'
+            )
+            fig.update_layout(
+                margin=dict(t=20, b=20, l=20, r=20),
+                xaxis_title="Total Views",
+                yaxis_title="",
+                showlegend=False,
+                yaxis={'categoryorder': 'total ascending'}
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No TikTok views data available yet. Run the scraper to collect views.")
+
+    with col2:
+        st.markdown("**📹 Top 10 Videos by Views (TikTok)**")
+        if not tiktok_df.empty:
+            top_views = tiktok_df.nlargest(10, 'views')[['content_creator', 'views', 'reactions', 'comments', 'shares', 'video_link']]
+
+            # Make video links clickable
+            def make_link(url):
+                if pd.isna(url) or not url:
+                    return ""
+                short_url = url[:35] + "..." if len(url) > 35 else url
+                return f'<a href="{url}" target="_blank">{short_url}</a>'
+
+            display_views = top_views.copy()
+            display_views['video_link'] = display_views['video_link'].apply(make_link)
+            display_views['views'] = display_views['views'].apply(lambda x: f"{x:,}")
+
+            st.write(display_views.to_html(escape=False, index=False), unsafe_allow_html=True)
+        else:
+            st.info("No TikTok views data available yet. Run the scraper to collect views.")
 
     # All posts table
     st.divider()
@@ -185,8 +250,14 @@ def main():
 
     # Sortable dataframe
     if not filtered_df.empty:
-        display_cols = ['content_creator', 'platform', 'sheet', 'reactions', 'comments', 'shares', 'engagement', 'video_link']
-        display_df = filtered_df[display_cols].sort_values('engagement', ascending=False)
+        display_cols = ['content_creator', 'platform', 'sheet', 'reactions', 'comments', 'shares', 'views', 'engagement', 'video_link']
+        display_df = filtered_df[display_cols].sort_values('engagement', ascending=False).copy()
+
+        # Show "-" for views on non-TikTok platforms
+        display_df['views'] = display_df.apply(
+            lambda row: row['views'] if row['platform'] == 'TikTok' and row['views'] > 0 else '-',
+            axis=1
+        )
 
         st.dataframe(
             display_df,
@@ -197,6 +268,7 @@ def main():
                 "reactions": st.column_config.NumberColumn("Reactions", format="%d"),
                 "comments": st.column_config.NumberColumn("Comments", format="%d"),
                 "shares": st.column_config.NumberColumn("Shares", format="%d"),
+                "views": st.column_config.TextColumn("Views"),
                 "engagement": st.column_config.NumberColumn("Total", format="%d"),
                 "video_link": st.column_config.LinkColumn("Video Link", display_text="Open")
             },
