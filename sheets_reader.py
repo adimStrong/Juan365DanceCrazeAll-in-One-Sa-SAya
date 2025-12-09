@@ -1,6 +1,7 @@
 """
 Google Sheets Reader
 Reads engagement data from Google Sheets for the dashboard.
+Supports both local credentials.json and Streamlit Cloud secrets.
 """
 
 import gspread
@@ -12,11 +13,31 @@ from config import SHEET_ID, SCOPES, CREDENTIALS_FILE
 
 
 def get_client():
-    """Get authenticated Google Sheets client."""
+    """
+    Get authenticated Google Sheets client.
+    Supports:
+    1. Streamlit Cloud secrets (st.secrets["gcp_service_account"])
+    2. Local credentials.json file
+    """
+    # Try Streamlit secrets first (for Streamlit Cloud deployment)
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and "gcp_service_account" in st.secrets:
+            creds = Credentials.from_service_account_info(
+                st.secrets["gcp_service_account"],
+                scopes=SCOPES
+            )
+            client = gspread.authorize(creds)
+            return client
+    except Exception:
+        pass  # Fall back to local credentials
+
+    # Fall back to local credentials.json
     if not os.path.exists(CREDENTIALS_FILE):
         raise FileNotFoundError(
             f"credentials.json not found!\n\n"
-            f"Please copy credentials.json from fb_video_scraper project."
+            f"Please copy credentials.json from fb_video_scraper project,\n"
+            f"or configure Streamlit Cloud secrets."
         )
 
     creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
