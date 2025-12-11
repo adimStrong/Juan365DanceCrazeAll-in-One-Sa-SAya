@@ -333,65 +333,21 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
-            fig = px.bar(
-                views_by_platform,
-                x='platform',
-                y='views',
-                color='platform',
-                title='Views by Platform',
-                color_discrete_sequence=['#4267B2', '#000000', '#E1306C']
-            )
-            fig.update_layout(
-                margin=dict(t=40, b=20, l=20, r=20),
-                showlegend=False,
-                xaxis_title="",
-                yaxis_title="Total Views"
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            # Top 10 Views - All Platforms Combined
+            st.markdown("**🏆 Top 10 by Views (All Platforms)**")
+            top_views_all = filtered_df[filtered_df['views'] > 0].nlargest(10, 'views')[['content_creator', 'platform', 'views', 'reactions', 'video_link']]
+            if not top_views_all.empty:
+                top_display = top_views_all.copy()
+                top_display['Rank'] = range(1, len(top_display) + 1)
+                top_display['views'] = top_display['views'].apply(lambda x: f"{x:,}")
+                top_display['reactions'] = top_display['reactions'].apply(lambda x: f"{x:,}")
+                top_display = top_display[['Rank', 'content_creator', 'platform', 'views', 'reactions']]
+                top_display.columns = ['#', 'Creator', 'Platform', 'Views', 'Reactions']
+                st.dataframe(top_display, hide_index=True, use_container_width=True)
+            else:
+                st.info("No views data available")
     else:
         st.info("No views data available yet. Run the scraper to collect views from Facebook and TikTok.")
-
-    # ===== TOP RANK BY VIEWS - SIDE BY SIDE =====
-    st.divider()
-    st.subheader("🏆 Top Rank by Views - Facebook vs TikTok")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("**📘 Facebook Top 10 by Views**")
-        fb_top = filtered_df[(filtered_df['platform'] == 'Facebook') & (filtered_df['views'] > 0)].nlargest(10, 'views')[['content_creator', 'views', 'reactions', 'video_link']]
-        if not fb_top.empty:
-            fb_display = fb_top.copy()
-            fb_display['Rank'] = range(1, len(fb_display) + 1)
-            fb_display['views'] = fb_display['views'].apply(lambda x: f"{x:,}")
-            fb_display['reactions'] = fb_display['reactions'].apply(lambda x: f"{x:,}")
-            fb_display = fb_display[['Rank', 'content_creator', 'views', 'reactions']]
-            fb_display.columns = ['Rank', 'Creator', 'Views', 'Reactions']
-            st.dataframe(fb_display, hide_index=True, use_container_width=True)
-
-            # Total stats
-            total_fb = filtered_df[(filtered_df['platform'] == 'Facebook') & (filtered_df['views'] > 0)]['views'].sum()
-            st.metric("Total Facebook Views", f"{total_fb:,}")
-        else:
-            st.info("No Facebook views data")
-
-    with col2:
-        st.markdown("**🎵 TikTok Top 10 by Views**")
-        tt_top = filtered_df[(filtered_df['platform'] == 'TikTok') & (filtered_df['views'] > 0)].nlargest(10, 'views')[['content_creator', 'views', 'reactions', 'video_link']]
-        if not tt_top.empty:
-            tt_display = tt_top.copy()
-            tt_display['Rank'] = range(1, len(tt_display) + 1)
-            tt_display['views'] = tt_display['views'].apply(lambda x: f"{x:,}")
-            tt_display['reactions'] = tt_display['reactions'].apply(lambda x: f"{x:,}")
-            tt_display = tt_display[['Rank', 'content_creator', 'views', 'reactions']]
-            tt_display.columns = ['Rank', 'Creator', 'Views', 'Reactions']
-            st.dataframe(tt_display, hide_index=True, use_container_width=True)
-
-            # Total stats
-            total_tt = filtered_df[(filtered_df['platform'] == 'TikTok') & (filtered_df['views'] > 0)]['views'].sum()
-            st.metric("Total TikTok Views", f"{total_tt:,}")
-        else:
-            st.info("No TikTok views data")
 
     # All posts table
     st.divider()
