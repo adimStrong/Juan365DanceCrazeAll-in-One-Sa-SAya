@@ -176,11 +176,11 @@ def main():
                 short_url = url[:40] + "..." if len(url) > 40 else url
                 return f'<a href="{url}" target="_blank">{short_url}</a>'
 
-            # Show "-" for views on non-TikTok platforms
+            # Show views for platforms that have them
             def format_views(row):
-                if row['platform'] != 'TikTok':
-                    return '-'
-                return row['views'] if row['views'] > 0 else '-'
+                if row['views'] > 0:
+                    return f"{row['views']:,}"
+                return '-'
 
             display_df = top_posts.copy()
             display_df['views'] = display_df.apply(format_views, axis=1)
@@ -188,9 +188,69 @@ def main():
 
             st.write(display_df.to_html(escape=False, index=False), unsafe_allow_html=True)
 
-    # TikTok Views section
+    # ===== FACEBOOK VIEWS SECTION =====
     st.divider()
-    st.subheader("👁️ TikTok Views")
+    st.subheader("📘 Facebook Views")
+
+    # Filter Facebook only with views > 0
+    fb_df = filtered_df[(filtered_df['platform'] == 'Facebook') & (filtered_df['views'] > 0)]
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**🏆 Top Creators by Views (Facebook)**")
+        if not fb_df.empty:
+            fb_creator_views = fb_df.groupby('content_creator').agg({
+                'views': 'sum',
+                'video_link': 'count'
+            }).rename(columns={'video_link': 'videos'}).sort_values('views', ascending=False).head(10)
+
+            fig = px.bar(
+                fb_creator_views.reset_index(),
+                x='views',
+                y='content_creator',
+                orientation='h',
+                color='views',
+                color_continuous_scale='Blues'
+            )
+            fig.update_layout(
+                margin=dict(t=20, b=20, l=20, r=20),
+                xaxis_title="Total Views",
+                yaxis_title="",
+                showlegend=False,
+                yaxis={'categoryorder': 'total ascending'}
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Show stats
+            total_fb_views = fb_df['views'].sum()
+            st.success(f"📊 Total Facebook Views: **{total_fb_views:,}** from **{len(fb_df)}** videos")
+        else:
+            st.info("No Facebook views data available yet. Run the scraper to collect views.")
+
+    with col2:
+        st.markdown("**📹 Top 10 Videos by Views (Facebook)**")
+        if not fb_df.empty:
+            top_fb_views = fb_df.nlargest(10, 'views')[['content_creator', 'views', 'reactions', 'comments', 'shares', 'video_link']]
+
+            # Make video links clickable
+            def make_link(url):
+                if pd.isna(url) or not url:
+                    return ""
+                short_url = url[:35] + "..." if len(url) > 35 else url
+                return f'<a href="{url}" target="_blank">{short_url}</a>'
+
+            display_fb_views = top_fb_views.copy()
+            display_fb_views['video_link'] = display_fb_views['video_link'].apply(make_link)
+            display_fb_views['views'] = display_fb_views['views'].apply(lambda x: f"{x:,}")
+
+            st.write(display_fb_views.to_html(escape=False, index=False), unsafe_allow_html=True)
+        else:
+            st.info("No Facebook views data available yet. Run the scraper to collect views.")
+
+    # ===== TIKTOK VIEWS SECTION =====
+    st.divider()
+    st.subheader("🎵 TikTok Views")
 
     # Filter TikTok only with views > 0
     tiktok_df = filtered_df[(filtered_df['platform'] == 'TikTok') & (filtered_df['views'] > 0)]
@@ -211,7 +271,7 @@ def main():
                 y='content_creator',
                 orientation='h',
                 color='views',
-                color_continuous_scale='Blues'
+                color_continuous_scale='Purples'
             )
             fig.update_layout(
                 margin=dict(t=20, b=20, l=20, r=20),
@@ -221,6 +281,10 @@ def main():
                 yaxis={'categoryorder': 'total ascending'}
             )
             st.plotly_chart(fig, use_container_width=True)
+
+            # Show stats
+            total_tiktok_views = tiktok_df['views'].sum()
+            st.success(f"📊 Total TikTok Views: **{total_tiktok_views:,}** from **{len(tiktok_df)}** videos")
         else:
             st.info("No TikTok views data available yet. Run the scraper to collect views.")
 
@@ -244,6 +308,49 @@ def main():
         else:
             st.info("No TikTok views data available yet. Run the scraper to collect views.")
 
+    # ===== VIEWS COMPARISON =====
+    st.divider()
+    st.subheader("📊 Views Comparison by Platform")
+
+    # Get views data for both platforms
+    views_by_platform = filtered_df[filtered_df['views'] > 0].groupby('platform').agg({
+        'views': 'sum',
+        'video_link': 'count'
+    }).rename(columns={'video_link': 'videos'}).reset_index()
+
+    if not views_by_platform.empty:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            fig = px.pie(
+                views_by_platform,
+                values='views',
+                names='platform',
+                title='Total Views Distribution',
+                color_discrete_sequence=['#4267B2', '#000000', '#E1306C']  # FB blue, TikTok black, IG pink
+            )
+            fig.update_layout(margin=dict(t=40, b=20, l=20, r=20))
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            fig = px.bar(
+                views_by_platform,
+                x='platform',
+                y='views',
+                color='platform',
+                title='Views by Platform',
+                color_discrete_sequence=['#4267B2', '#000000', '#E1306C']
+            )
+            fig.update_layout(
+                margin=dict(t=40, b=20, l=20, r=20),
+                showlegend=False,
+                xaxis_title="",
+                yaxis_title="Total Views"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No views data available yet. Run the scraper to collect views from Facebook and TikTok.")
+
     # All posts table
     st.divider()
     st.subheader("📋 All Posts")
@@ -253,10 +360,9 @@ def main():
         display_cols = ['content_creator', 'platform', 'sheet', 'reactions', 'comments', 'shares', 'views', 'engagement', 'video_link']
         display_df = filtered_df[display_cols].sort_values('engagement', ascending=False).copy()
 
-        # Show "-" for views on non-TikTok platforms
-        display_df['views'] = display_df.apply(
-            lambda row: row['views'] if row['platform'] == 'TikTok' and row['views'] > 0 else '-',
-            axis=1
+        # Show views for all platforms that have them
+        display_df['views'] = display_df['views'].apply(
+            lambda x: x if x > 0 else '-'
         )
 
         st.dataframe(
