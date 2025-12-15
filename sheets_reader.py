@@ -9,7 +9,7 @@ from google.oauth2.service_account import Credentials
 import pandas as pd
 import os
 import re
-from config import SHEET_ID, SCOPES, CREDENTIALS_FILE
+from config import SHEET_ID, SCOPES, CREDENTIALS_FILE, EXCLUDED_SHEETS
 
 
 def get_client():
@@ -144,6 +144,10 @@ def read_all_data():
     all_data = []
 
     for sheet in sheets:
+        # Skip excluded sheets
+        if sheet.title in EXCLUDED_SHEETS:
+            continue
+
         all_values = sheet.get_all_values()
 
         if len(all_values) < 2:

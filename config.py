@@ -16,3 +16,6 @@ CREDENTIALS_FILE = 'credentials.json'
 
 # Dashboard settings
 DASHBOARD_TITLE = "Video Engagement Dashboard"
+
+# Sheets to exclude from dashboard
+EXCLUDED_SHEETS = ['Employee Edition']
